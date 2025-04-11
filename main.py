@@ -114,7 +114,9 @@ class SSHTunnelApp(QWidget):
     def toggle_tunnel(self, host, port):
         if port["active"]:
             self.tunnel_manager.stop_tunnel(host, port)
+            port["should_reconnect"] = False
         else:
+            port["should_reconnect"] = True
             self.tunnel_manager.start_tunnel(host, port)
         self.load_host_ports(self.sidebar.currentItem())
 
@@ -124,6 +126,15 @@ class SSHTunnelApp(QWidget):
             host = item.text()
             active = self.tunnel_manager.is_any_tunnel_active(host)
             item.setForeground(Qt.GlobalColor.green if active else Qt.GlobalColor.black)
+        self.restart_inactive_tunnels()
+
+    def restart_inactive_tunnels(self):
+        for host in self.hosts:
+            ports = self.tunnel_manager.get_ports_for_host(host)
+            for port in ports:
+                if port.get("should_reconnect", False) and not port["active"]:
+                    self.tunnel_manager.start_tunnel(host, port)
+                    print(f"Auto-restarted tunnel for {host}:{port['local']} -> {port['remote']}")
 
     def add_new_port(self):
         current_item = self.sidebar.currentItem()
